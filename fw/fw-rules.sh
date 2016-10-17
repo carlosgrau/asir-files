@@ -1,12 +1,27 @@
-
 #!/bin/sh
 if [ $# -ne 1 ]
 	then
 		echo "NECESITO un PARAMETRO start o stop"
 exit 0
-fi 
+fi
 	case $1 in
 	"start")
+
+
+#VARIABLES
+DMZ_NET="172.20.111.0/24"
+LAN_NET="192.168.111.0/24"
+
+DMZ_IF="ens3"
+WAN_IF="ens4"
+LAN_IF="ens10"
+
+DMZ_IP="172.20.111.254"
+WAN_IP="10.3.4.193"
+LAN_IP="192.168.111.254"
+
+#BORRAR REGLAS
+iptables -F
 
 #REGLAS BASICAS
 iptables -P INPUT DROP
@@ -33,28 +48,39 @@ iptables -A OUTPUT -o ens4 -p udp --dport 67 --sport 68 -j ACCEPT
 iptables -A INPUT -i ens4 -p udp --sport 67 --dport 68 -j ACCEPT
 
 #REGLA 8
-#iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 22 -j ACCEPT
+iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 22 -j ACCEPT
 #REGLA 9
-#iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p udp --dport 53 -j ACCEPT
+iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p udp --dport 53 -j ACCEPT
 #REGLA 10
-#iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 80 -j ACCEPT
+iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 80 -j ACCEPT
 #REGLA 11
-#iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 443 -j ACCEPT
+iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 443 -j ACCEPT
 #REGLA 12
 iptables -A FORWARD -p icmp -j ACCEPT
 iptables -A INPUT -p icmp -j ACCEPT
 iptables -A OUTPUT -p icmp -j ACCEPT
 #REGLAS 13
-#iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 80 -i ens4 -j ACCEPT
+iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 80 -i ens4 -j ACCEPT
 #REGLAS 14
-#iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 443 -i ens4 -j ACCEPT
+iptables -A FORWARD -s 192.168.111.0/24 -d 172.20.111.0/24 -p tcp --dport 443 -i ens4 -j ACCEPT
 #REGLA POSTFORWARDING
-#iptables -t nat -A PREROUTING -i ens4 -p tcp --dport 80 -j DNAT --to 172.20.111.22
-
+iptables -t nat -A PREROUTING -i ens4 -p tcp --dport 80 -j DNAT --to 172.20.111.22
+#REGLAS PREROUTING
 iptables -t nat -A PREROUTING -i ens4 -d 10.3.4.193 -p tcp --dport 22 -j DNAT --to 172.20.111.22
 iptables -A FORWARD -i ens4 -o ens3 -p tcp --dport 22 -d 172.20.111.22 -j ACCEPT
 iptables -A FORWARD -i ens3 -o ens4 -p tcp --sport 22 -s 172.20.111.22 -j ACCEPT
 
+#PREGUNTA Y RESPUESTA DEL SSH EXTERIOR-WAN
+iptables -A INPUT -i $WAN_IF -d $WAN_IP -p tcp --dport 2222 -j ACCEPT
+iptables -A OUTPUT -o $WAN_IF -m state --state ESTABLISHED,RELATED -p tcp --sport 2222 -j ACCEPT
+
+#PREGUNTA Y RESPUESTA DEL SSH WAN-LAN
+iptables -A INPUT -i $LAN_IF -d $LAN_IP -p tcp --dport 2222 -j ACCEPT
+iptables -A OUTPUT -o $LAN_IF -m state --state ESTABLISHED,RELATED -p tcp --sport 2222 -j ACCEPT
+
+#PREGUNTA Y RESPUESTA DEL SSH LAN-DMZ
+iptables -A INPUT -i $DMZ_IF -d $DMZ_IP -p tcp --dport 2222 -j ACCEPT
+iptables -A OUTPUT -o $DMZ_IF -m state --state ESTABLISHED,RELATED -p tcp --sport 2222 -j ACCEPT
 
 ;;
 
